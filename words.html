@@ -1,0 +1,948 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Secret Cards | Imposter</title>
+<style>
+:root {
+  --bg:#060817; --panel:#10142b; --purple:#822cff;
+  --pink:#e94dff; --text:#f5f3ff; --muted:#b6b5d3;
+  --border:#292950;
+}
+* { box-sizing:border-box; }
+body {
+  margin:0; min-height:100vh; color:var(--text);
+  font-family:Arial,sans-serif;
+  background:radial-gradient(ellipse at top,#211047,var(--bg) 55%);
+}
+.container { max-width:560px; margin:auto; padding:22px 16px; }
+.top { display:flex; justify-content:space-between; gap:10px; font-size:12px; color:#c8b8ff; }
+.pill { border:1px solid #39305e; border-radius:30px; padding:9px 12px; }
+h1 { text-align:center; margin:38px 0 8px; font-size:32px; }
+.subtitle { text-align:center; color:var(--muted); font-size:14px; line-height:1.5; }
+.progress { display:flex; gap:6px; margin:24px 0; }
+.progress span { height:5px; flex:1; border-radius:5px; background:#242440; }
+.progress span.done { background:var(--purple); }
+.card {
+  width:100%; min-height:290px; border-radius:24px; padding:28px 18px;
+  border:2px solid #9d39ff;
+  background:radial-gradient(ellipse at top,#2b165f,#0b0d23 75%);
+  box-shadow:0 0 32px #862cff25;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  text-align:center; cursor:pointer; transition:.2s;
+}
+.card.revealed { border-color:var(--pink); cursor:default; }
+.card .emoji { font-size:42px; margin-bottom:22px; }
+.card h2 { font-size:clamp(27px,8vw,40px); margin:0; overflow-wrap:anywhere; }
+.card p { color:#c8b8ff; line-height:1.5; }
+.primary {
+  display:block; width:100%; padding:16px; margin-top:16px;
+  border:0; border-radius:13px; color:white; font-size:15px;
+  font-weight:bold; cursor:pointer;
+  background:linear-gradient(100deg,#6924ff,#a12dff);
+}
+.secondary { background:#12162c; border:1px solid #39305e; }
+.note {
+  margin-top:20px; border:1px solid var(--border); border-radius:13px;
+  background:#0b1024; padding:16px; color:var(--muted);
+  font-size:13px; line-height:1.6;
+}
+.note strong { color:#c58cff; }
+.hidden { display:none !important; }
+footer { text-align:center; color:#8d8aac; font-size:12px; padding:24px 0; }
+</style>
+</head>
+<body>
+<main class="container">
+  <div class="top">
+    <span class="pill" id="gameInfo">👥 3 Players | 1 Imposter</span>
+    <span class="pill" id="languageLabel">🌐 English</span>
+  </div>
+
+  <h1 id="playerTitle">Player 1</h1>
+  <div class="subtitle" id="instructions">Tap the card to reveal your secret.</div>
+
+  <div class="progress" id="progress" aria-label="Player progress"></div>
+
+  <div class="card" id="secretCard" role="button" tabindex="0"
+       aria-label="Tap to reveal secret" onclick="revealCard()"
+       onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();revealCard()}">
+    <div class="emoji" id="cardEmoji">👾</div>
+    <h2 id="cardTitle">?</h2>
+    <p id="cardSub">TAP TO REVEAL</p>
+  </div>
+
+  <button class="primary" id="revealButton" onclick="revealCard()">◉ &nbsp; Reveal My Role</button>
+  <button class="primary secondary hidden" id="hideButton" onclick="hideAndContinue()">🔒 &nbsp; Hide &amp; Next Player</button>
+
+  <div class="note" id="note">
+    <strong>💡 Remember...</strong><br>
+    Keep your role secret. Don't show your card to anyone.
+    Pass the phone only after hiding your card.
+  </div>
+
+  <footer>PLAYER <span id="playerNumber">1</span> OF <span id="totalPlayers">3</span></footer>
+</main>
+
+<script>
+const wordLists = {
+  en: {
+    easy: [
+      ["Apple","🍎","Fruit"],["Mountain","⛰️","Nature"],["Pizza","🍕","Food"],
+      ["School","🏫","Place"],["Elephant","🐘","Animal"],["Beach","🏖️","Place"],
+      ["Football","⚽","Sport"],["Coffee","☕","Drink"],["Airplane","✈️","Travel"],
+      ["Hospital","🏥","Place"],["Guitar","🎸","Music"],["Rain","🌧️","Weather"],
+      ["Tiger","🐅","Animal"],["Ice cream","🍦","Food"],["Bicycle","🚲","Transport"],
+      ["Moon","🌙","Space"],["Banana","🍌","Fruit"],["Cinema","🎬","Place"],
+      ["Book","📚","Object"],["River","🏞️","Nature"],
+  ["Book","📚","Object"],
+  ["Pen","🖊️","Object"],
+  ["Pencil","✏️","Object"],
+  ["Chair","🪑","Object"],
+  ["Table","🪑","Object"],
+  ["Clock","🕒","Object"],
+  ["Mirror","🪞","Object"],
+  ["Umbrella","☂️","Object"],
+  ["Wallet","👛","Object"],
+  ["Backpack","🎒","Object"],
+  ["Key","🔑","Object"],
+  ["Bottle","🍼","Object"],
+  ["Candle","🕯️","Object"],
+  ["Scissors","✂️","Object"],
+  ["Hammer","🔨","Object"],
+  ["Broom","🧹","Object"],
+  ["Bucket","🪣","Object"],
+  ["Towel","🧻","Object"],
+  ["Pillow","🛏️","Object"],
+  ["Blanket","🛏️","Object"],
+
+  // Animals
+  ["Dog","🐕","Animal"],
+  ["Cat","🐈","Animal"],
+  ["Lion","🦁","Animal"],
+  ["Tiger","🐅","Animal"],
+  ["Elephant","🐘","Animal"],
+  ["Monkey","🐒","Animal"],
+  ["Rabbit","🐇","Animal"],
+  ["Horse","🐎","Animal"],
+  ["Cow","🐄","Animal"],
+  ["Goat","🐐","Animal"],
+  ["Sheep","🐑","Animal"],
+  ["Bear","🐻","Animal"],
+  ["Fox","🦊","Animal"],
+  ["Wolf","🐺","Animal"],
+  ["Giraffe","🦒","Animal"],
+  ["Zebra","🦓","Animal"],
+  ["Kangaroo","🦘","Animal"],
+  ["Panda","🐼","Animal"],
+  ["Deer","🦌","Animal"],
+  ["Camel","🐪","Animal"],
+
+  // Birds
+  ["Parrot","🦜","Bird"],
+  ["Peacock","🦚","Bird"],
+  ["Eagle","🦅","Bird"],
+  ["Owl","🦉","Bird"],
+  ["Duck","🦆","Bird"],
+  ["Crow","🐦‍⬛","Bird"],
+  ["Pigeon","🕊️","Bird"],
+  ["Sparrow","🐦","Bird"],
+  ["Penguin","🐧","Bird"],
+  ["Flamingo","🦩","Bird"],
+
+  // Sea Animals
+  ["Shark","🦈","Sea Animal"],
+  ["Whale","🐋","Sea Animal"],
+  ["Dolphin","🐬","Sea Animal"],
+  ["Octopus","🐙","Sea Animal"],
+  ["Crab","🦀","Sea Animal"],
+  ["Shrimp","🦐","Sea Animal"],
+  ["Jellyfish","🪼","Sea Animal"],
+  ["Turtle","🐢","Sea Animal"],
+  ["Seahorse","🐠","Sea Animal"],
+  ["Starfish","⭐","Sea Animal"],
+
+  // Fruits
+  ["Apple","🍎","Fruit"],
+  ["Banana","🍌","Fruit"],
+  ["Mango","🥭","Fruit"],
+  ["Orange","🍊","Fruit"],
+  ["Grapes","🍇","Fruit"],
+  ["Pineapple","🍍","Fruit"],
+  ["Watermelon","🍉","Fruit"],
+  ["Strawberry","🍓","Fruit"],
+  ["Cherry","🍒","Fruit"],
+  ["Peach","🍑","Fruit"],
+  ["Pear","🍐","Fruit"],
+  ["Lemon","🍋","Fruit"],
+  ["Coconut","🥥","Fruit"],
+  ["Kiwi","🥝","Fruit"],
+  ["Blueberry","🫐","Fruit"],
+
+  // Vegetables
+  ["Carrot","🥕","Vegetable"],
+  ["Potato","🥔","Vegetable"],
+  ["Tomato","🍅","Vegetable"],
+  ["Eggplant","🍆","Vegetable"],
+  ["Broccoli","🥦","Vegetable"],
+  ["Corn","🌽","Vegetable"],
+  ["Cucumber","🥒","Vegetable"],
+  ["Chili","🌶️","Vegetable"],
+  ["Pumpkin","🎃","Vegetable"],
+  ["Onion","🧅","Vegetable"],
+
+  // Food
+  ["Pizza","🍕","Food"],
+  ["Burger","🍔","Food"],
+  ["Sandwich","🥪","Food"],
+  ["French Fries","🍟","Food"],
+  ["Noodles","🍜","Food"],
+  ["Rice","🍚","Food"],
+  ["Biryani","🍛","Food"],
+  ["Dosa","🥞","Food"],
+  ["Idli","🍽️","Food"],
+  ["Pancake","🥞","Food"],
+  ["Cake","🎂","Food"],
+  ["Donut","🍩","Food"],
+  ["Cookie","🍪","Food"],
+  ["Chocolate","🍫","Food"],
+  ["Ice Cream","🍦","Food"],
+
+  // Drinks
+  ["Water","💧","Drink"],
+  ["Coffee","☕","Drink"],
+  ["Tea","🍵","Drink"],
+  ["Milk","🥛","Drink"],
+  ["Juice","🧃","Drink"],
+  ["Lemonade","🍋","Drink"],
+  ["Smoothie","🥤","Drink"],
+  ["Milkshake","🥤","Drink"],
+  ["Soda","🥤","Drink"],
+  ["Coconut Water","🥥","Drink"],
+
+  // Vehicles
+  ["Car","🚗","Vehicle"],
+  ["Bus","🚌","Vehicle"],
+  ["Motorcycle","🏍️","Vehicle"],
+  ["Bicycle","🚲","Vehicle"],
+  ["Train","🚆","Vehicle"],
+  ["Airplane","✈️","Vehicle"],
+  ["Helicopter","🚁","Vehicle"],
+  ["Boat","🚤","Vehicle"],
+  ["Truck","🚚","Vehicle"],
+  ["Ambulance","🚑","Vehicle"],
+  ["Tractor","🚜","Vehicle"],
+  ["Rocket","🚀","Vehicle"],
+  ["Scooter","🛵","Vehicle"],
+  ["Submarine","🚢","Vehicle"],
+  ["Taxi","🚕","Vehicle"],
+
+  // Places
+  ["School","🏫","Place"],
+  ["Hospital","🏥","Place"],
+  ["Airport","✈️","Place"],
+  ["Library","📚","Place"],
+  ["Restaurant","🍽️","Place"],
+  ["Beach","🏖️","Place"],
+  ["Park","🌳","Place"],
+  ["Zoo","🦁","Place"],
+  ["Cinema","🎬","Place"],
+  ["Supermarket","🛒","Place"],
+  ["Bank","🏦","Place"],
+  ["Hotel","🏨","Place"],
+  ["Museum","🏛️","Place"],
+  ["Stadium","🏟️","Place"],
+  ["Railway Station","🚉","Place"],
+
+  // Clothing
+  ["Shirt","👕","Clothing"],
+  ["Jeans","👖","Clothing"],
+  ["Jacket","🧥","Clothing"],
+  ["Dress","👗","Clothing"],
+  ["Shoes","👟","Clothing"],
+  ["Hat","🧢","Clothing"],
+  ["Socks","🧦","Clothing"],
+  ["Gloves","🧤","Clothing"],
+  ["Scarf","🧣","Clothing"],
+  ["Sunglasses","🕶️","Clothing"],
+
+  // Electronics
+  ["Phone","📱","Electronics"],
+  ["Laptop","💻","Electronics"],
+  ["Computer","🖥️","Electronics"],
+  ["Television","📺","Electronics"],
+  ["Camera","📷","Electronics"],
+  ["Headphones","🎧","Electronics"],
+  ["Keyboard","⌨️","Electronics"],
+  ["Mouse","🖱️","Electronics"],
+  ["Speaker","🔊","Electronics"],
+  ["Charger","🔌","Electronics"],
+
+  // Sports
+  ["Football","⚽","Sport"],
+  ["Cricket","🏏","Sport"],
+  ["Basketball","🏀","Sport"],
+  ["Tennis","🎾","Sport"],
+  ["Volleyball","🏐","Sport"],
+  ["Badminton","🏸","Sport"],
+  ["Baseball","⚾","Sport"],
+  ["Golf","⛳","Sport"],
+  ["Boxing","🥊","Sport"],
+  ["Swimming","🏊","Sport"],
+
+  // Professions
+  ["Doctor","🧑‍⚕️","Profession"],
+  ["Teacher","🧑‍🏫","Profession"],
+  ["Police Officer","👮","Profession"],
+  ["Chef","🧑‍🍳","Profession"],
+  ["Farmer","🧑‍🌾","Profession"],
+  ["Firefighter","🧑‍🚒","Profession"],
+  ["Pilot","🧑‍✈️","Profession"],
+  ["Scientist","🧑‍🔬","Profession"],
+  ["Artist","🎨","Profession"],
+  ["Photographer","📸","Profession"],
+
+  // Nature
+  ["Tree","🌳","Nature"],
+  ["Flower","🌸","Nature"],
+  ["Mountain","⛰️","Nature"],
+  ["River","🏞️","Nature"],
+  ["Ocean","🌊","Nature"],
+  ["Forest","🌲","Nature"],
+  ["Waterfall","💦","Nature"],
+  ["Rainbow","🌈","Nature"],
+  ["Cloud","☁️","Nature"],
+  ["Volcano","🌋","Nature"],
+
+  // Weather
+  ["Sun","☀️","Weather"],
+  ["Rain","🌧️","Weather"],
+  ["Snow","❄️","Weather"],
+  ["Thunder","🌩️","Weather"],
+  ["Lightning","⚡","Weather"],
+  ["Wind","💨","Weather"],
+  ["Fog","🌫️","Weather"],
+  ["Tornado","🌪️","Weather"],
+  ["Storm","⛈️","Weather"],
+  ["Rainbow","🌈","Weather"],
+
+  // Musical Instruments
+  ["Guitar","🎸","Instrument"],
+  ["Piano","🎹","Instrument"],
+  ["Drum","🥁","Instrument"],
+  ["Violin","🎻","Instrument"],
+  ["Flute","🪈","Instrument"],
+  ["Trumpet","🎺","Instrument"],
+  ["Saxophone","🎷","Instrument"],
+  ["Microphone","🎤","Instrument"],
+  ["Harp","🎼","Instrument"],
+  ["Accordion","🪗","Instrument"],
+
+  // School Items
+  ["Eraser","🩷","School Item"],
+  ["Ruler","📏","School Item"],
+  ["Notebook","📓","School Item"],
+  ["School Bag","🎒","School Item"],
+  ["Crayon","🖍️","School Item"],
+  ["Calculator","🧮","School Item"],
+  ["Globe","🌍","School Item"],
+  ["Map","🗺️","School Item"],
+  ["Blackboard","📋","School Item"],
+  ["Glue","🧴","School Item"],
+
+  // Emotions
+  ["Happiness","😄","Emotion"],
+  ["Sadness","😢","Emotion"],
+  ["Anger","😡","Emotion"],
+  ["Fear","😨","Emotion"],
+  ["Love","❤️","Emotion"],
+  ["Surprise","😲","Emotion"],
+  ["Excitement","🤩","Emotion"],
+  ["Sleepiness","😴","Emotion"],
+  ["Confusion","😕","Emotion"],
+  ["Laughter","😂","Emotion"]
+
+    ],
+    minimal: [
+      ["Key","🔑","Object"],["Fog","🌫️","Weather"],["Ink","🖋️","Object"],
+      ["Ash","🌋","Nature"],["Bee","🐝","Animal"],["Net","🥅","Object"],
+      ["Jam","🍓","Food"],["Map","🗺️","Object"],["Owl","🦉","Animal"],
+      ["Van","🚐","Transport"],["Web","🕸️","Object"],["Gem","💎","Object"],
+      ["Mud","🟤","Nature"],["Fan","🪭","Object"],["Jet","✈️","Transport"]
+    ]
+  },
+  ml: {
+    easy: [
+      ["ആപ്പിൾ","🍎","പഴം"],["മല","⛰️","പ്രകൃതി"],["പിസ്സ","🍕","ഭക്ഷണം"],
+      ["സ്കൂൾ","🏫","സ്ഥലം"],["ആന","🐘","മൃഗം"],["കടൽത്തീരം","🏖️","സ്ഥലം"],
+      ["ഫുട്ബോൾ","⚽","കളി"],["കാപ്പി","☕","പാനീയം"],["വിമാനം","✈️","യാത്ര"],
+      ["ആശുപത്രി","🏥","സ്ഥലം"],["മഴ","🌧️","കാലാവസ്ഥ"],["കടുവ","🐅","മൃഗം"],
+      ["ഐസ്ക്രീം","🍦","ഭക്ഷണം"],["ചന്ദ്രൻ","🌙","ആകാശം"],["വാഴപ്പഴം","🍌","പഴം"],
+      ["പുസ്തകം","📚","വസ്തു"],["നദി","🏞️","പ്രകൃതി"],["പൂച്ച","🐈","മൃഗം"],
+      ["മീൻ","🐟","മൃഗം"],["വീട്","🏠","സ്ഥലം"],
+  // Places - സ്ഥലങ്ങൾ
+  ["വീട്","🏠","സ്ഥലം"],
+  ["സ്കൂൾ","🏫","സ്ഥലം"],
+  ["ആശുപത്രി","🏥","സ്ഥലം"],
+  ["കട","🏪","സ്ഥലം"],
+  ["ചന്ത","🛒","സ്ഥലം"],
+  ["പാർക്ക്","🌳","സ്ഥലം"],
+  ["ക്ഷേത്രം","🛕","സ്ഥലം"],
+  ["പള്ളി","🕌","സ്ഥലം"],
+  ["റെയിൽവേ സ്റ്റേഷൻ","🚉","സ്ഥലം"],
+  ["വിമാനത്താവളം","✈️","സ്ഥലം"],
+  ["ബസ് സ്റ്റാൻഡ്","🚌","സ്ഥലം"],
+  ["സിനിമാശാല","🎬","സ്ഥലം"],
+  ["ലൈബ്രറി","📚","സ്ഥലം"],
+  ["ബാങ്ക്","🏦","സ്ഥലം"],
+  ["പോസ്റ്റ് ഓഫീസ്","📮","സ്ഥലം"],
+  ["ഹോട്ടൽ","🏨","സ്ഥലം"],
+  ["കടൽത്തീരം","🏖️","സ്ഥലം"],
+  ["മൃഗശാല","🦁","സ്ഥലം"],
+  ["കോളേജ്","🎓","സ്ഥലം"],
+  ["കളിസ്ഥലം","🏟️","സ്ഥലം"],
+
+  // Animals - മൃഗങ്ങൾ
+  ["നായ","🐕","മൃഗം"],
+  ["പൂച്ച","🐈","മൃഗം"],
+  ["പശു","🐄","മൃഗം"],
+  ["ആട്","🐐","മൃഗം"],
+  ["കുതിര","🐎","മൃഗം"],
+  ["ആന","🐘","മൃഗം"],
+  ["സിംഹം","🦁","മൃഗം"],
+  ["കടുവ","🐅","മൃഗം"],
+  ["കുരങ്ങ്","🐒","മൃഗം"],
+  ["മുയൽ","🐇","മൃഗം"],
+  ["കരടി","🐻","മൃഗം"],
+  ["മാൻ","🦌","മൃഗം"],
+  ["കുറുക്കൻ","🦊","മൃഗം"],
+  ["ഒട്ടകം","🐪","മൃഗം"],
+  ["ജിറാഫ്","🦒","മൃഗം"],
+  ["സീബ്ര","🦓","മൃഗം"],
+  ["കാണ്ടാമൃഗം","🦏","മൃഗം"],
+  ["കാട്ടുപന്നി","🐗","മൃഗം"],
+  ["കഴുത","🫏","മൃഗം"],
+  ["കാട്ടുപോത്ത്","🐃","മൃഗം"],
+
+  // Birds - പക്ഷികൾ
+  ["കാക്ക","🐦‍⬛","പക്ഷി"],
+  ["പ്രാവ്","🕊️","പക്ഷി"],
+  ["തത്ത","🦜","പക്ഷി"],
+  ["മയിൽ","🦚","പക്ഷി"],
+  ["കോഴി","🐓","പക്ഷി"],
+  ["താറാവ്","🦆","പക്ഷി"],
+  ["കുരുവി","🐦","പക്ഷി"],
+  ["മൂങ്ങ","🦉","പക്ഷി"],
+  ["പരുന്ത്","🦅","പക്ഷി"],
+  ["കൊക്ക്","🦩","പക്ഷി"],
+
+  // Sea animals - കടൽജീവികൾ
+  ["സ്രാവ്","🦈","കടൽജീവി"],
+  ["തിമിംഗലം","🐋","കടൽജീവി"],
+  ["ഡോൾഫിൻ","🐬","കടൽജീവി"],
+  ["ഞണ്ട്","🦀","കടൽജീവി"],
+  ["ചെമ്മീൻ","🦐","കടൽജീവി"],
+  ["നീരാളി","🐙","കടൽജീവി"],
+  ["കടലാമ","🐢","കടൽജീവി"],
+  ["ജെല്ലിഫിഷ്","🪼","കടൽജീവി"],
+  ["കടൽക്കുതിര","🐠","കടൽജീവി"],
+  ["മത്സ്യം","🐟","കടൽജീവി"],
+
+  // Fruits - പഴങ്ങൾ
+  ["മാമ്പഴം","🥭","പഴം"],
+  ["വാഴപ്പഴം","🍌","പഴം"],
+  ["ആപ്പിൾ","🍎","പഴം"],
+  ["ഓറഞ്ച്","🍊","പഴം"],
+  ["മുന്തിരി","🍇","പഴം"],
+  ["പപ്പായ","🍈","പഴം"],
+  ["പൈനാപ്പിൾ","🍍","പഴം"],
+  ["തണ്ണിമത്തൻ","🍉","പഴം"],
+  ["ചക്ക","🍈","പഴം"],
+  ["പേരയ്ക്ക","🍐","പഴം"],
+  ["തേങ്ങ","🥥","പഴം"],
+  ["നാരങ്ങ","🍋","പഴം"],
+  ["മാതളം","🍎","പഴം"],
+  ["സപ്പോട്ട","🍐","പഴം"],
+  ["സീതപ്പഴം","🍈","പഴം"],
+
+  // Vegetables - പച്ചക്കറികൾ
+  ["കാരറ്റ്","🥕","പച്ചക്കറി"],
+  ["ഉരുളക്കിഴങ്ങ്","🥔","പച്ചക്കറി"],
+  ["തക്കാളി","🍅","പച്ചക്കറി"],
+  ["വെണ്ടയ്ക്ക","🥬","പച്ചക്കറി"],
+  ["വഴുതന","🍆","പച്ചക്കറി"],
+  ["മത്തങ്ങ","🎃","പച്ചക്കറി"],
+  ["വെള്ളരിക്ക","🥒","പച്ചക്കറി"],
+  ["കാബേജ്","🥬","പച്ചക്കറി"],
+  ["ബീറ്റ്റൂട്ട്","🫜","പച്ചക്കറി"],
+  ["മുളക്","🌶️","പച്ചക്കറി"],
+  ["ചീര","🥬","പച്ചക്കറി"],
+  ["മുരിങ്ങക്കായ്","🥬","പച്ചക്കറി"],
+  ["പാവയ്ക്ക","🥒","പച്ചക്കറി"],
+  ["പടവലങ്ങ","🥒","പച്ചക്കറി"],
+  ["ചുരക്ക","🥒","പച്ചക്കറി"],
+
+  // Food - ഭക്ഷണം
+  ["ചോറ്","🍚","ഭക്ഷണം"],
+  ["കഞ്ഞി","🥣","ഭക്ഷണം"],
+  ["പുട്ട്","🍽️","ഭക്ഷണം"],
+  ["അപ്പം","🥞","ഭക്ഷണം"],
+  ["ദോശ","🥞","ഭക്ഷണം"],
+  ["ഇഡലി","🍘","ഭക്ഷണം"],
+  ["ബിരിയാണി","🍛","ഭക്ഷണം"],
+  ["പൊറോട്ട","🫓","ഭക്ഷണം"],
+  ["ഉപ്പുമാവ്","🥣","ഭക്ഷണം"],
+  ["പായസം","🍮","ഭക്ഷണം"],
+  ["അവിയൽ","🥘","ഭക്ഷണം"],
+  ["തോരൻ","🥗","ഭക്ഷണം"],
+  ["സാമ്പാർ","🍲","ഭക്ഷണം"],
+  ["രസം","🥣","ഭക്ഷണം"],
+  ["പത്തിരി","🫓","ഭക്ഷണം"],
+  ["കപ്പ","🍠","ഭക്ഷണം"],
+  ["മീൻകറി","🐟","ഭക്ഷണം"],
+  ["ചപ്പാത്തി","🫓","ഭക്ഷണം"],
+  ["പഴംപൊരി","🍌","ഭക്ഷണം"],
+  ["ഉണ്ണിയപ്പം","🍩","ഭക്ഷണം"],
+
+  // Drinks - പാനീയങ്ങൾ
+  ["വെള്ളം","💧","പാനീയം"],
+  ["ചായ","☕","പാനീയം"],
+  ["കാപ്പി","☕","പാനീയം"],
+  ["പാൽ","🥛","പാനീയം"],
+  ["നാരങ്ങാവെള്ളം","🍋","പാനീയം"],
+  ["ജ്യൂസ്","🧃","പാനീയം"],
+  ["മോര്","🥛","പാനീയം"],
+  ["കരിക്കിൻവെള്ളം","🥥","പാനീയം"],
+  ["മിൽക്ക് ഷേക്ക്","🥤","പാനീയം"],
+  ["സൂപ്പ്","🍵","പാനീയം"],
+
+  // Vehicles - വാഹനങ്ങൾ
+  ["കാർ","🚗","വാഹനം"],
+  ["ബസ്","🚌","വാഹനം"],
+  ["ബൈക്ക്","🏍️","വാഹനം"],
+  ["സൈക്കിൾ","🚲","വാഹനം"],
+  ["ഓട്ടോ","🛺","വാഹനം"],
+  ["ട്രെയിൻ","🚆","വാഹനം"],
+  ["വിമാനം","✈️","വാഹനം"],
+  ["ബോട്ട്","🚤","വാഹനം"],
+  ["ലോറി","🚚","വാഹനം"],
+  ["ആംബുലൻസ്","🚑","വാഹനം"],
+  ["ട്രാക്ടർ","🚜","വാഹനം"],
+  ["ഹെലികോപ്റ്റർ","🚁","വാഹനം"],
+  ["റോക്കറ്റ്","🚀","വാഹനം"],
+  ["മെട്രോ","🚇","വാഹനം"],
+  ["സ്കൂട്ടർ","🛵","വാഹനം"],
+
+  // Household objects - വീട്ടുപകരണങ്ങൾ
+  ["മേശ","🪑","വീട്ടുപകരണം"],
+  ["കസേര","🪑","വീട്ടുപകരണം"],
+  ["കട്ടിൽ","🛏️","വീട്ടുപകരണം"],
+  ["അലമാര","🚪","വീട്ടുപകരണം"],
+  ["സോഫ","🛋️","വീട്ടുപകരണം"],
+  ["ഫാൻ","🪭","വീട്ടുപകരണം"],
+  ["വിളക്ക്","💡","വീട്ടുപകരണം"],
+  ["കണ്ണാടി","🪞","വീട്ടുപകരണം"],
+  ["ഘടികാരം","🕒","വീട്ടുപകരണം"],
+  ["തിരശ്ശീല","🪟","വീട്ടുപകരണം"],
+  ["കമ്പളം","🛏️","വീട്ടുപകരണം"],
+  ["തലയണ","🛏️","വീട്ടുപകരണം"],
+  ["പായ","🧺","വീട്ടുപകരണം"],
+  ["കുടം","🏺","വീട്ടുപകരണം"],
+  ["ചെടിച്ചട്ടി","🪴","വീട്ടുപകരണം"],
+
+  // Kitchen - അടുക്കള
+  ["ചട്ടി","🍳","അടുക്കള"],
+  ["പാത്രം","🥣","അടുക്കള"],
+  ["സ്പൂൺ","🥄","അടുക്കള"],
+  ["ഫോർക്ക്","🍴","അടുക്കള"],
+  ["കത്തി","🔪","അടുക്കള"],
+  ["മിക്സി","🥤","അടുക്കള"],
+  ["അടുപ്പ്","🔥","അടുക്കള"],
+  ["ഫ്രിഡ്ജ്","🧊","അടുക്കള"],
+  ["പ്രഷർ കുക്കർ","🍲","അടുക്കള"],
+  ["തവി","🥄","അടുക്കള"],
+
+  // Clothing - വസ്ത്രങ്ങൾ
+  ["ഷർട്ട്","👕","വസ്ത്രം"],
+  ["മുണ്ട്","🥻","വസ്ത്രം"],
+  ["സാരി","👘","വസ്ത്രം"],
+  ["പാവാട","👗","വസ്ത്രം"],
+  ["ജീൻസ്","👖","വസ്ത്രം"],
+  ["ജാക്കറ്റ്","🧥","വസ്ത്രം"],
+  ["തൊപ്പി","🧢","വസ്ത്രം"],
+  ["പൈജാമ","🩳","വസ്ത്രം"],
+  ["കൈയുറ","🧤","വസ്ത്രം"],
+  ["മഴക്കോട്ട്","🌧️","വസ്ത്രം"],
+
+  // Body parts - ശരീരഭാഗങ്ങൾ
+  ["തല","🗣️","ശരീരഭാഗം"],
+  ["മുടി","💇","ശരീരഭാഗം"],
+  ["കണ്ണ്","👁️","ശരീരഭാഗം"],
+  ["ചെവി","👂","ശരീരഭാഗം"],
+  ["മൂക്ക്","👃","ശരീരഭാഗം"],
+  ["വായ","👄","ശരീരഭാഗം"],
+  ["പല്ല്","🦷","ശരീരഭാഗം"],
+  ["കൈ","✋","ശരീരഭാഗം"],
+  ["കാൽ","🦶","ശരീരഭാഗം"],
+  ["വിരൽ","☝️","ശരീരഭാഗം"],
+  ["ഹൃദയം","❤️","ശരീരഭാഗം"],
+  ["തലച്ചോർ","🧠","ശരീരഭാഗം"],
+  ["നാവ്","👅","ശരീരഭാഗം"],
+  ["മീശ","👨","ശരീരഭാഗം"],
+  ["താടി","🧔","ശരീരഭാഗം"],
+
+  // Family - കുടുംബം
+  ["അമ്മ","👩","കുടുംബം"],
+  ["അച്ഛൻ","👨","കുടുംബം"],
+  ["ചേച്ചി","👧","കുടുംബം"],
+  ["ചേട്ടൻ","👦","കുടുംബം"],
+  ["അനിയൻ","🧒","കുടുംബം"],
+  ["അനിയത്തി","👧","കുടുംബം"],
+  ["മുത്തശ്ശി","👵","കുടുംബം"],
+  ["മുത്തച്ഛൻ","👴","കുടുംബം"],
+  ["മകൾ","👧","കുടുംബം"],
+  ["മകൻ","👦","കുടുംബം"],
+
+  // Jobs - തൊഴിൽ
+  ["ഡോക്ടർ","🧑‍⚕️","തൊഴിൽ"],
+  ["അധ്യാപകൻ","👨‍🏫","തൊഴിൽ"],
+  ["പോലീസുകാരൻ","👮","തൊഴിൽ"],
+  ["കർഷകൻ","👨‍🌾","തൊഴിൽ"],
+  ["ഡ്രൈവർ","🚕","തൊഴിൽ"],
+  ["പാചകക്കാരൻ","👨‍🍳","തൊഴിൽ"],
+  ["തയ്യൽക്കാരൻ","🧵","തൊഴിൽ"],
+  ["മത്സ്യത്തൊഴിലാളി","🎣","തൊഴിൽ"],
+  ["എഞ്ചിനീയർ","👷","തൊഴിൽ"],
+  ["ചിത്രകാരൻ","🎨","തൊഴിൽ"],
+
+  // Nature - പ്രകൃതി
+  ["മരം","🌳","പ്രകൃതി"],
+  ["പൂവ്","🌸","പ്രകൃതി"],
+  ["ഇല","🍃","പ്രകൃതി"],
+  ["കാട്","🌲","പ്രകൃതി"],
+  ["മല","⛰️","പ്രകൃതി"],
+  ["നദി","🏞️","പ്രകൃതി"],
+  ["തോട്","💧","പ്രകൃതി"],
+  ["കടൽ","🌊","പ്രകൃതി"],
+  ["മഴ","🌧️","പ്രകൃതി"],
+  ["മേഘം","☁️","പ്രകൃതി"],
+  ["മഴവില്ല്","🌈","പ്രകൃതി"],
+  ["വെള്ളച്ചാട്ടം","🏞️","പ്രകൃതി"],
+  ["ഗുഹ","🪨","പ്രകൃതി"],
+  ["പാറ","🪨","പ്രകൃതി"],
+  ["ദ്വീപ്","🏝️","പ്രകൃതി"],
+
+  // Flowers - പൂക്കൾ
+  ["റോസ്","🌹","പൂവ്"],
+  ["താമര","🪷","പൂവ്"],
+  ["ചെമ്പരത്തി","🌺","പൂവ്"],
+  ["മുല്ല","🌼","പൂവ്"],
+  ["സൂര്യകാന്തി","🌻","പൂവ്"],
+  ["ജമന്തി","🌼","പൂവ്"],
+  ["കണിക്കൊന്ന","🌼","പൂവ്"],
+  ["ശംഖുപുഷ്പം","💙","പൂവ്"],
+  ["തുമ്പപ്പൂ","🌼","പൂവ്"],
+  ["മന്ദാരം","🌺","പൂവ്"],
+
+  // Weather - കാലാവസ്ഥ
+  ["വെയിൽ","☀️","കാലാവസ്ഥ"],
+  ["കാറ്റ്","💨","കാലാവസ്ഥ"],
+  ["ഇടി","🌩️","കാലാവസ്ഥ"],
+  ["മിന്നൽ","⚡","കാലാവസ്ഥ"],
+  ["മഞ്ഞ്","❄️","കാലാവസ്ഥ"],
+  ["മൂടൽമഞ്ഞ്","🌫️","കാലാവസ്ഥ"],
+  ["ചൂട്","🥵","കാലാവസ്ഥ"],
+  ["തണുപ്പ്","🥶","കാലാവസ്ഥ"],
+  ["കൊടുങ്കാറ്റ്","🌪️","കാലാവസ്ഥ"],
+  ["ചാറ്റൽമഴ","🌦️","കാലാവസ്ഥ"],
+
+  // Sports - കളികൾ
+  ["ഫുട്ബോൾ","⚽","കളി"],
+  ["ക്രിക്കറ്റ്","🏏","കളി"],
+  ["കബഡി","🤼","കളി"],
+  ["വോളിബോൾ","🏐","കളി"],
+  ["ബാഡ്മിന്റൺ","🏸","കളി"],
+  ["ചെസ്സ്","♟️","കളി"],
+  ["ഒളിച്ചുകളി","🙈","കളി"],
+  ["കണ്ണാമൂച്ചി","🙈","കളി"],
+  ["കയർവലി","🪢","കളി"],
+  ["നീന്തൽ","🏊","കളി"],
+  ["ടെന്നീസ്","🎾","കളി"],
+  ["ബോക്സിംഗ്","🥊","കളി"],
+  ["യോഗ","🧘","കളി"],
+  ["അമ്പെയ്ത്ത്","🏹","കളി"],
+  ["ഭാരോദ്വഹനം","🏋️","കളി"],
+
+  // School items - സ്കൂൾ സാധനങ്ങൾ
+  ["പുസ്തകം","📚","സ്കൂൾ സാധനം"],
+  ["പേന","🖊️","സ്കൂൾ സാധനം"],
+  ["പെൻസിൽ","✏️","സ്കൂൾ സാധനം"],
+  ["റബ്ബർ","🩷","സ്കൂൾ സാധനം"],
+  ["നോട്ട്ബുക്ക്","📓","സ്കൂൾ സാധനം"],
+  ["ബാഗ്","🎒","സ്കൂൾ സാധനം"],
+  ["സ്കെയിൽ","📏","സ്കൂൾ സാധനം"],
+  ["ക്രയോൺ","🖍️","സ്കൂൾ സാധനം"],
+  ["ചോക്ക്","🖍️","സ്കൂൾ സാധനം"],
+  ["ബ്ലാക്ക്ബോർഡ്","🧑‍🏫","സ്കൂൾ സാധനം"],
+
+  // Electronics - ഇലക്ട്രോണിക്സ്
+  ["ഫോൺ","📱","ഇലക്ട്രോണിക്സ്"],
+  ["കമ്പ്യൂട്ടർ","🖥️","ഇലക്ട്രോണിക്സ്"],
+  ["ലാപ്ടോപ്പ്","💻","ഇലക്ട്രോണിക്സ്"],
+  ["ടെലിവിഷൻ","📺","ഇലക്ട്രോണിക്സ്"],
+  ["റേഡിയോ","📻","ഇലക്ട്രോണിക്സ്"],
+  ["ക്യാമറ","📷","ഇലക്ട്രോണിക്സ്"],
+  ["ഹെഡ്ഫോൺ","🎧","ഇലക്ട്രോണിക്സ്"],
+  ["സ്പീക്കർ","🔊","ഇലക്ട്രോണിക്സ്"],
+  ["കീബോർഡ്","⌨️","ഇലക്ട്രോണിക്സ്"],
+  ["മൗസ്","🖱️","ഇലക്ട്രോണിക്സ്"],
+  ["ചാർജർ","🔌","ഇലക്ട്രോണിക്സ്"],
+  ["ബാറ്ററി","🔋","ഇലക്ട്രോണിക്സ്"],
+  ["ഡ്രോൺ","🚁","ഇലക്ട്രോണിക്സ്"],
+  ["പ്രിന്റർ","🖨️","ഇലക്ട്രോണിക്സ്"],
+  ["മൈക്രോഫോൺ","🎤","ഇലക്ട്രോണിക്സ്"],
+
+  // Music - സംഗീതം
+  ["ഗിറ്റാർ","🎸","സംഗീതം"],
+  ["വീണ","🎶","സംഗീതം"],
+  ["മൃദംഗം","🥁","സംഗീതം"],
+  ["ചെണ്ട","🥁","സംഗീതം"],
+  ["തബല","🥁","സംഗീതം"],
+  ["കുഴൽ","🪈","സംഗീതം"],
+  ["വയലിൻ","🎻","സംഗീതം"],
+  ["ഹാർമോണിയം","🎹","സംഗീതം"],
+  ["പാട്ട്","🎤","സംഗീതം"],
+  ["നൃത്തം","💃","സംഗീതം"],
+
+  // Tools and cleaning - ഉപകരണങ്ങൾ
+  ["ചൂൽ","🧹","ഉപകരണം"],
+  ["മുറം","🧺","ഉപകരണം"],
+  ["ബക്കറ്റ്","🪣","ഉപകരണം"],
+  ["സോപ്പ്","🧼","ഉപകരണം"],
+  ["ബ്രഷ്","🪥","ഉപകരണം"],
+  ["തുടപ്പ്","🧹","ഉപകരണം"],
+  ["കയർ","🪢","ഉപകരണം"],
+  ["കത്രിക","✂️","ഉപകരണം"],
+  ["ചുറ്റിക","🔨","ഉപകരണം"],
+  ["സ്ക്രൂഡ്രൈവർ","🪛","ഉപകരണം"],
+
+  // Festivals - ഉത്സവങ്ങൾ
+  ["ഓണം","🌼","ഉത്സവം"],
+  ["വിഷു","🌻","ഉത്സവം"],
+  ["പെരുന്നാൾ","🌙","ഉത്സവം"],
+  ["ക്രിസ്മസ്","🎄","ഉത്സവം"],
+  ["ദീപാവലി","🪔","ഉത്സവം"],
+  ["തെയ്യം","🎭","ഉത്സവം"],
+  ["വള്ളംകളി","🚣","ഉത്സവം"],
+  ["പൂക്കളം","🌸","ഉത്സവം"],
+  ["പടക്കം","🎆","ഉത്സവം"],
+  ["ഓണസദ്യ","🍽️","ഉത്സവം"],
+
+  // Emotions - വികാരങ്ങൾ
+  ["സന്തോഷം","😄","വികാരം"],
+  ["ദുഃഖം","😢","വികാരം"],
+  ["കോപം","😡","വികാരം"],
+  ["ഭയം","😨","വികാരം"],
+  ["സ്നേഹം","❤️","വികാരം"],
+  ["അതിശയം","😲","വികാരം"],
+  ["ലജ്ജ","😳","വികാരം"],
+  ["അസൂയ","😒","വികാരം"],
+  ["ആശ്വാസം","😌","വികാരം"],
+  ["ആകാംക്ഷ","🤩","വികാരം"],
+
+  // Daily activities - പ്രവൃത്തികൾ
+  ["നടക്കുക","🚶","പ്രവൃത്തി"],
+  ["ഓടുക","🏃","പ്രവൃത്തി"],
+  ["ചാടുക","🤸","പ്രവൃത്തി"],
+  ["ഉറങ്ങുക","😴","പ്രവൃത്തി"],
+  ["ഉണരുക","⏰","പ്രവൃത്തി"],
+  ["ചിരിക്കുക","😂","പ്രവൃത്തി"],
+  ["കരയുക","😭","പ്രവൃത്തി"],
+  ["വായിക്കുക","📖","പ്രവൃത്തി"],
+  ["എഴുതുക","✍️","പ്രവൃത്തി"],
+  ["പാചകം ചെയ്യുക","👨‍🍳","പ്രവൃത്തി"],
+
+  // More everyday objects - മറ്റു വസ്തുക്കൾ
+  ["കുട","☂️","വസ്തു"],
+  ["ചെരിപ്പ്","👟","വസ്തു"],
+  ["ബെൽറ്റ്","🪢","വസ്തു"],
+  ["പേഴ്സ്","👛","വസ്തു"],
+  ["താക്കോൽ","🔑","വസ്തു"],
+  ["കൈസഞ്ചി","👜","വസ്തു"],
+  ["കുപ്പി","🍼","വസ്തു"],
+  ["കൈരൂമാൽ","🧻","വസ്തു"],
+  ["പാസ്‌പോർട്ട്","🛂","വസ്തു"],
+  ["കണ്ണട","👓","വസ്തു"],
+
+  // Professions and public services - തൊഴിൽ
+  ["അഗ്നിരക്ഷകൻ","🧑‍🚒","തൊഴിൽ"],
+  ["ഇലക്ട്രീഷ്യൻ","🧑‍🔧","തൊഴിൽ"],
+  ["പ്ലംബർ","🔧","തൊഴിൽ"],
+  ["ശാസ്ത്രജ്ഞൻ","🧑‍🔬","തൊഴിൽ"],
+  ["പൈലറ്റ്","🧑‍✈️","തൊഴിൽ"],
+  ["ഫോട്ടോഗ്രാഫർ","📸","തൊഴിൽ"],
+  ["അഭിഭാഷകൻ","⚖️","തൊഴിൽ"],
+  ["നാവികൻ","⚓","തൊഴിൽ"],
+  ["ബാർബർ","💈","തൊഴിൽ"],
+  ["തപാൽക്കാരൻ","📮","തൊഴിൽ"],
+
+  // Kerala culture - കേരള സംസ്കാരം
+  ["കഥകളി","🎭","കേരള സംസ്കാരം"],
+  ["മോഹിനിയാട്ടം","💃","കേരള സംസ്കാരം"],
+  ["തിരുവാതിര","💃","കേരള സംസ്കാരം"],
+  ["ചെണ്ടമേളം","🥁","കേരള സംസ്കാരം"],
+  ["കളരിപ്പയറ്റ്","🥋","കേരള സംസ്കാരം"],
+  ["ഒപ്പന","💃","കേരള സംസ്കാരം"],
+  ["മാർഗംകളി","💃","കേരള സംസ്കാരം"],
+  ["കൈകൊട്ടിക്കളി","👏","കേരള സംസ്കാരം"],
+  ["ഓണക്കളി","🎉","കേരള സംസ്കാരം"],
+  ["പാവക്കൂത്ത്","🎭","കേരള സംസ്കാരം"],
+
+  // Technology - സാങ്കേതികവിദ്യ
+  ["ഇന്റർനെറ്റ്","🌐","സാങ്കേതികവിദ്യ"],
+  ["വെബ്സൈറ്റ്","💻","സാങ്കേതികവിദ്യ"],
+  ["ആപ്പ്","📱","സാങ്കേതികവിദ്യ"],
+  ["പാസ്‌വേഡ്","🔐","സാങ്കേതികവിദ്യ"],
+  ["വൈഫൈ","📶","സാങ്കേതികവിദ്യ"],
+  ["സെർവർ","🖥️","സാങ്കേതികവിദ്യ"],
+  ["റോബോട്ട്","🤖","സാങ്കേതികവിദ്യ"],
+  ["സർക്യൂട്ട്","🔌","സാങ്കേതികവിദ്യ"],
+  ["സോളാർ പാനൽ","☀️","സാങ്കേതികവിദ്യ"],
+  ["റൂട്ടർ","📡","സാങ്കേതികവിദ്യ"],
+
+  // Sky and space - ആകാശം
+  ["സൂര്യൻ","☀️","ആകാശം"],
+  ["ചന്ദ്രൻ","🌙","ആകാശം"],
+  ["നക്ഷത്രം","⭐","ആകാശം"],
+  ["ഗ്രഹം","🪐","ആകാശം"],
+  ["വാൽനക്ഷത്രം","☄️","ആകാശം"],
+  ["ആകാശഗംഗ","🌌","ആകാശം"],
+  ["ദൂരദർശിനി","🔭","ആകാശം"],
+  ["മഴത്തുള്ളി","💧","പ്രകൃതി"],
+  ["മഞ്ഞുതുള്ളി","💧","പ്രകൃതി"],
+  ["മരുഭൂമി","🏜️","പ്രകൃതി"]
+
+    ],
+    minimal: [
+      ["പൂ","🌸","പ്രകൃതി"],["തീ","🔥","പ്രകൃതി"],["മഴ","🌧️","കാലാവസ്ഥ"],
+      ["പാൽ","🥛","പാനീയം"],["മീൻ","🐟","മൃഗം"],["മരം","🌳","പ്രകൃതി"],
+      ["കൈ","✋","ശരീരം"],["കണ്ണ്","👁️","ശരീരം"],["മൺ","🟤","പ്രകൃതി"],
+      ["ചായ","🍵","പാനീയം"],["പഴം","🍌","ഭക്ഷണം"],["നായ","🐕","മൃഗം"]
+    ]
+  }
+};
+
+let settings, roles, word, hint, current = 0, revealed = false;
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+function getRandomHint(selectedWord) {
+  const entry = Object.values(wordLists).flatMap(x => Object.values(x).flat())
+    .find(x => x[0] === selectedWord);
+  return entry ? entry[2] : "";
+}
+function loadGame() {
+  try {
+    settings = JSON.parse(localStorage.getItem("imposterSettings") || "null");
+  } catch (e) { settings = null; }
+
+  if (!settings || !settings.players || !settings.imposters) {
+    window.location.replace("index.html");
+    return false;
+  }
+
+  const pool = wordLists[settings.language]?.[settings.difficulty] || wordLists.en.easy;
+  const selected = pool[Math.floor(Math.random() * pool.length)];
+  word = selected[0];
+  hint = selected[2];
+
+  roles = Array(settings.players).fill("player");
+  for (let i = 0; i < settings.imposters; i++) roles[i] = "imposter";
+  shuffle(roles);
+
+  localStorage.setItem("imposterRoles", JSON.stringify(roles));
+  localStorage.setItem("imposterWord", word);
+  localStorage.setItem("imposterHint", hint);
+  localStorage.removeItem("imposterTimerEnd");
+
+  document.getElementById("gameInfo").textContent =
+    `👥 ${settings.players} Players | ${settings.imposters} Imposter${settings.imposters > 1 ? "s" : ""}`;
+  document.getElementById("languageLabel").textContent =
+    settings.language === "ml" ? "🌐 മലയാളം" : "🌐 English";
+  document.getElementById("totalPlayers").textContent = settings.players;
+
+  const progress = document.getElementById("progress");
+  progress.innerHTML = "";
+  for (let i = 0; i < settings.players; i++) {
+    const segment = document.createElement("span");
+    if (i === 0) segment.classList.add("done");
+    progress.appendChild(segment);
+  }
+  showPlayer();
+  return true;
+}
+function showPlayer() {
+  revealed = false;
+  const player = current + 1;
+  document.getElementById("playerTitle").textContent = `Player ${player}`;
+  document.getElementById("playerNumber").textContent = player;
+  document.getElementById("instructions").textContent =
+    "Pass the phone to Player " + player + ". Tap the card to see your role.";
+  document.getElementById("cardEmoji").textContent = "👾";
+  document.getElementById("cardTitle").textContent = "?";
+  document.getElementById("cardSub").textContent = "TAP TO REVEAL";
+  document.getElementById("secretCard").classList.remove("revealed");
+  document.getElementById("revealButton").classList.remove("hidden");
+  document.getElementById("hideButton").classList.add("hidden");
+  document.getElementById("note").innerHTML =
+    "<strong>💡 Remember...</strong><br>Keep your role secret. Don't show your card to anyone. Pass the phone only after hiding your card.";
+  [...document.getElementById("progress").children].forEach((el, i) => {
+    el.classList.toggle("done", i <= current);
+  });
+}
+function revealCard() {
+  if (revealed) return;
+  revealed = true;
+  const isImposter = roles[current] === "imposter";
+  const card = document.getElementById("secretCard");
+  card.classList.add("revealed");
+  document.getElementById("cardEmoji").textContent = isImposter ? "😈" : "🔐";
+  document.getElementById("cardTitle").textContent =
+    isImposter ? "IMPOSTER" : word;
+  document.getElementById("cardSub").textContent =
+    isImposter ? "You don't know the secret word!" : "YOUR SECRET WORD";
+  document.getElementById("instructions").textContent = "Memorize your role. Keep it secret!";
+  document.getElementById("revealButton").classList.add("hidden");
+  document.getElementById("hideButton").classList.remove("hidden");
+
+  const hintLine = isImposter && settings.hints
+    ? `<br><br><strong>Hint:</strong> ${hint}`
+    : "";
+  document.getElementById("note").innerHTML =
+    `<strong>🔒 Keep it a secret!</strong><br>Don't let anyone else see your card.${hintLine}`;
+}
+function hideAndContinue() {
+  if (!revealed) return;
+  if (current < settings.players - 1) {
+    current++;
+    showPlayer();
+  } else {
+    // All players have seen their role. Clear the visible role before leaving.
+    document.getElementById("cardTitle").textContent = "?";
+    document.getElementById("cardEmoji").textContent = "👾";
+    document.getElementById("cardSub").textContent = "";
+    document.getElementById("secretCard").classList.remove("revealed");
+    window.location.href = "imposter.html";
+  }
+}
+loadGame();
+</script>
+</body>
+</html>

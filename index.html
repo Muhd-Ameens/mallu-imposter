@@ -1,0 +1,227 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Imposter | The Party Game</title>
+<style>
+:root {
+  --bg: #060817;
+  --panel: #10142b;
+  --purple: #822cff;
+  --pink: #e94dff;
+  --text: #f5f3ff;
+  --muted: #b6b5d3;
+  --border: #292950;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: radial-gradient(ellipse at top, #211047 0%, var(--bg) 50%);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+}
+.container { max-width: 760px; margin: auto; padding: 24px 16px; }
+header { text-align: center; padding: 22px 0; }
+.logo {
+  width: 112px; height: 112px; margin: auto auto 12px;
+  border: 2px solid var(--pink); border-radius: 32px;
+  display: grid; place-items: center; font-size: 55px;
+  background: linear-gradient(145deg, #29105c, #090b20);
+  box-shadow: 0 0 35px #852cff45;
+}
+h1 { font-size: clamp(35px, 8vw, 55px); margin: 8px 0; letter-spacing: 2px; }
+h1 span { color: var(--pink); }
+.subtitle { color: #bda1ff; letter-spacing: 4px; font-size: 12px; }
+.panel {
+  background: #10142beF; border: 1px solid var(--border);
+  border-radius: 16px; padding: 18px; margin: 15px 0;
+}
+h2 { font-size: 19px; margin: 0 0 12px; color: #c58cff; }
+p { color: var(--muted); line-height: 1.6; font-size: 14px; }
+.rules { margin-bottom: 0; }
+.rules strong { color: white; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat { background: #080c20; padding: 14px; border-radius: 12px; border: 1px solid var(--border); }
+.stat label, .field-label { display: block; font-size: 13px; margin-bottom: 12px; }
+.counter { display: flex; align-items: center; gap: 8px; }
+.counter button {
+  width: 38px; height: 38px; border: 0; border-radius: 9px;
+  color: white; font-size: 22px; background: var(--purple); cursor: pointer;
+}
+.counter output { flex: 1; text-align: center; font-size: 21px; font-weight: bold; }
+.small { font-size: 11px; color: #9694b7; text-align: center; margin-top: 8px; }
+.field { margin: 18px 0; }
+.segment { display: flex; gap: 8px; }
+.segment button {
+  flex: 1; padding: 11px 8px; border-radius: 9px;
+  border: 1px solid #38365f; background: #090d20; color: white; cursor: pointer;
+}
+.segment button.active { background: var(--purple); border-color: var(--pink); }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.toggle { width: 52px; height: 28px; border-radius: 20px; background: #34344e; padding: 3px; cursor: pointer; border: 0; }
+.toggle span { display: block; background: white; width: 22px; height: 22px; border-radius: 50%; transition: .2s; }
+.toggle.on { background: var(--purple); }
+.toggle.on span { transform: translateX(24px); }
+.primary {
+  width: 100%; padding: 16px; border: 0; border-radius: 13px;
+  color: white; font-weight: bold; font-size: 16px; cursor: pointer;
+  background: linear-gradient(100deg, #6924ff, #a12dff);
+  box-shadow: 0 5px 25px #792cff35;
+}
+.primary:hover { filter: brightness(1.12); }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.step { text-align: center; background: #090d20; border: 1px solid var(--border); border-radius: 10px; padding: 12px 5px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.step b { display: block; font-size: 23px; margin-bottom: 8px; }
+footer { text-align: center; padding: 25px 0; font-size: 12px; color: #8987ad; }
+@media(max-width:480px) {
+  .stats { gap: 8px; }
+  .stat { padding: 11px; }
+  .steps { grid-template-columns: 1fr 1fr; }
+}
+</style>
+</head>
+<body>
+<main class="container">
+<header>
+  <div class="logo" aria-label="Logo placeholder">👾</div>
+  <h1><span>IM</span>POSTER</h1>
+  <div class="subtitle">THE PARTY GAME</div>
+</header>
+
+<section class="panel">
+  <h2>How to Play</h2>
+  <p class="rules">
+    Every player receives the same secret word, except the imposter.
+    The imposter must blend in without knowing the word. Take turns
+    giving clues, discuss who seems suspicious, and vote to find the
+    imposter. <strong>Keep your secret hidden!</strong>
+  </p>
+</section>
+
+<section class="stats">
+  <div class="stat">
+    <label for="players">Number of Players</label>
+    <div class="counter">
+      <button type="button" onclick="changePlayers(-1)" aria-label="Fewer players">−</button>
+      <output id="players">3</output>
+      <button type="button" onclick="changePlayers(1)" aria-label="More players">+</button>
+    </div>
+    <div class="small">3–10 players</div>
+  </div>
+  <div class="stat">
+    <label for="imposters">Number of Imposters</label>
+    <div class="counter">
+      <button type="button" onclick="changeImposters(-1)" aria-label="Fewer imposters">−</button>
+      <output id="imposters">1</output>
+      <button type="button" onclick="changeImposters(1)" aria-label="More imposters">+</button>
+    </div>
+    <div class="small">At least 1, fewer than players</div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="row">
+    <div>
+      <strong>Imposter Hint</strong>
+      <p style="margin:5px 0 0">Give the imposter a small hint.</p>
+    </div>
+    <button class="toggle" id="hintToggle" type="button"
+      aria-label="Toggle imposter hint" aria-pressed="false" onclick="toggleHint()">
+      <span></span>
+    </button>
+  </div>
+  <div class="field">
+    <label class="field-label">Language</label>
+    <div class="segment" id="language">
+      <button type="button" class="active" data-value="en">English</button>
+      <button type="button" data-value="ml">മലയാളം</button>
+    </div>
+  </div>
+  <div class="field" style="margin-bottom:0">
+    <label class="field-label">Word Difficulty</label>
+    <div class="segment" id="difficulty">
+      <button type="button" class="active" data-value="easy">Easy</button>
+      <button type="button" data-value="minimal">Minimal</button>
+    </div>
+  </div>
+</section>
+
+<button class="primary" onclick="startGame()">▶ &nbsp; Start Game</button>
+
+<section class="panel" style="margin-top:25px">
+  <h2>How to Play — Quick Guide</h2>
+  <div class="steps">
+    <div class="step"><b>🃏</b>1. Get your secret role</div>
+    <div class="step"><b>🤫</b>2. Keep it secret</div>
+    <div class="step"><b>🔍</b>3. Find the imposter</div>
+    <div class="step"><b>💬</b>4. Discuss and vote</div>
+  </div>
+  <p>Pass the phone to each player. Make sure the previous player's
+  card is hidden before handing it over.</p>
+</section>
+
+<footer>GOOD VIBES · GREAT COMPANY · FIND THE IMPOSTER</footer>
+</main>
+
+<script>
+let playerCount = 3;
+let imposterCount = 1;
+let hints = false;
+let language = "en";
+let difficulty = "easy";
+
+function changePlayers(amount) {
+  playerCount = Math.max(3, Math.min(10, playerCount + amount));
+  imposterCount = Math.min(imposterCount, playerCount - 1);
+  updateCounts();
+}
+function changeImposters(amount) {
+  imposterCount = Math.max(1, Math.min(playerCount - 1, imposterCount + amount));
+  updateCounts();
+}
+function updateCounts() {
+  document.getElementById("players").textContent = playerCount;
+  document.getElementById("imposters").textContent = imposterCount;
+}
+function toggleHint() {
+  hints = !hints;
+  const btn = document.getElementById("hintToggle");
+  btn.classList.toggle("on", hints);
+  btn.setAttribute("aria-pressed", String(hints));
+}
+function setupSegments(id, callback) {
+  document.querySelectorAll("#" + id + " button").forEach(button => {
+    button.addEventListener("click", () => {
+      document.querySelectorAll("#" + id + " button").forEach(b => b.classList.remove("active"));
+      button.classList.add("active");
+      callback(button.dataset.value);
+    });
+  });
+}
+setupSegments("language", value => language = value);
+setupSegments("difficulty", value => difficulty = value);
+
+function startGame() {
+  const settings = {
+    players: playerCount,
+    imposters: imposterCount,
+    hints,
+    language,
+    difficulty
+  };
+  try {
+    localStorage.setItem("imposterSettings", JSON.stringify(settings));
+    localStorage.removeItem("imposterRoles");
+    localStorage.removeItem("imposterWord");
+    localStorage.removeItem("imposterHint");
+    localStorage.removeItem("imposterTimerEnd");
+    window.location.href = "words.html";
+  } catch (error) {
+    alert("Please open the game using Live Server so the pages can share game settings.");
+  }
+}
+</script>
+</body>
+</html>
